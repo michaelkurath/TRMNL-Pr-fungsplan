@@ -14,5 +14,5 @@ id: 515603
 oauth_enabled: 'false'
 oauth_pkce_enabled: 'no'
 name: Prüfungsplan
-description:
-refresh_interval:
+description: ''
+refresh_interval: 15
