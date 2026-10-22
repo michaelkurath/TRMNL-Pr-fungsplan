@@ -1,5 +1,5 @@
 ---
-strategy: polling
+strategy: webhook
 no_screen_padding: 'no'
 dark_mode: 'no'
 static_data: ''
