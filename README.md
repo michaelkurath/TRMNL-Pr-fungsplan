@@ -22,3 +22,10 @@ Privates Google Sheet → gebundenes Apps Script → privater TRMNL-Webhook → 
 
 ## Entwicklung
 Die bestehenden TRMNL-GitHub-Sync-Dateien bleiben erhalten. Optional lokal mit `trmnlp serve` testen.
+
+
+## Chronologische Ansicht und Druckvorlage
+
+Ab Version Oktober 2026 werden Prüfungen **global nach Datum** statt nach Fach gruppiert angezeigt. Fach steht bei jedem Eintrag. Nach Code-Aktualisierung in Google Apps Script **Prüfungsplan → Jetzt synchronisieren** wählen (bisherige Webhook-URL bleibt erhalten).
+
+Unter **Prüfungsplan → Druckvorlage erstellen** wird ein separates Tabellenblatt **Druckvorlage** angelegt. Es enthält die kommenden offenen Prüfungen sowie mindestens zwölf leere Zeilen zum handschriftlichen Eintragen. Zum Drucken **Datei → Drucken → Aktuelles Tabellenblatt** wählen, Querformat und Anpassung an Seitenbreite. Handschriftliche Ergänzungen anschliessend im Blatt **Pruefungen** digital erfassen; das Druckblatt synchronisiert nicht zurück.
