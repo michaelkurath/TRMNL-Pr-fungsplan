@@ -1,17 +1,23 @@
 <div class="layout layout--col gap--small">
-  <div class="title_bar"><span class="title">Prüfungsplan</span><span class="instance">{{ updated }}</span></div>
+  <div class="title_bar">
+    <span class="title">Prüfungsplan</span>
+    <span class="instance">{{ updated }}</span>
+  </div>
   {% if exams.size > 0 %}
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;">
-      {% for exam in exams limit:12 %}
-        <div style="border-bottom:1px solid #aaa;padding:8px;">
-          <div class="label">{{ exam.date_label }} · {% if exam.days == 0 %}HEUTE{% elsif exam.days == 1 %}MORGEN{% else %}{{ exam.days }} TAGE{% endif %}</div>
-          <div class="label" style="font-weight:bold;">{{ exam.subject | escape }}</div>
-          <div class="value">{{ exam.topic | escape }}</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;align-content:start;">
+      {% for exam in exams limit:10 %}
+        <div style="border-bottom:2px solid #999;padding:6px 4px;min-width:0;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px;">
+            <span style="font-size:27px;line-height:1.1;font-weight:800;">{{ exam.date_label }}</span>
+            <span class="label">{% if exam.days == 0 %}HEUTE{% elsif exam.days == 1 %}MORGEN{% else %}{{ exam.days }} T{% endif %}</span>
+          </div>
+          <div style="font-size:23px;line-height:1.13;font-weight:800;text-transform:uppercase;overflow-wrap:anywhere;">{{ exam.subject | escape }}</div>
+          <div style="font-size:18px;line-height:1.2;overflow-wrap:anywhere;">{{ exam.topic | escape }}</div>
           {% if exam.note != blank %}<div class="description">{{ exam.note | escape }}</div>{% endif %}
         </div>
       {% endfor %}
     </div>
   {% else %}
-    <div style="padding:26px;text-align:center;"><div class="value">Keine bevorstehenden Prüfungen</div></div>
+    <div class="value">Keine bevorstehenden Prüfungen</div>
   {% endif %}
 </div>
