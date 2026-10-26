@@ -12,7 +12,7 @@ function setup(){
  if(!t.includes('syncToTrmnl'))ScriptApp.newTrigger('syncToTrmnl').timeBased().everyHours(6).create();
  if(!t.includes('onSheetEdit'))ScriptApp.newTrigger('onSheetEdit').forSpreadsheet(ss).onEdit().create();
 }
-function onOpen(){SpreadsheetApp.getUi().createMenu('Prüfungsplan').addItem('Webhook verbinden','setWebhook').addItem('Jetzt synchronisieren','syncToTrmnl').addToUi();}
+function onOpen(){SpreadsheetApp.getUi().createMenu('Prüfungsplan').addItem('Webhook verbinden','setWebhook').addItem('Jetzt synchronisieren','syncToTrmnl').addItem('Verbindung testen','testConnection').addToUi();}
 function setWebhook(){
  const ui=SpreadsheetApp.getUi(),a=ui.prompt('TRMNL Webhook URL','Geheime URL einfügen:',ui.ButtonSet.OK_CANCEL);
  if(a.getSelectedButton()!==ui.Button.OK)return;
@@ -50,4 +50,30 @@ function syncToTrmnl(){
  if(JSON.stringify(data).length>1800)throw Error('Payload zu gross');
  const response=UrlFetchApp.fetch(url,{method:'post',contentType:'application/json',payload:JSON.stringify(data),muteHttpExceptions:true});
  if(response.getResponseCode()<200||response.getResponseCode()>=300)throw Error('TRMNL HTTP '+response.getResponseCode()+': '+response.getContentText().slice(0,200));
+}
+
+/**
+ * Non-destructive connectivity check: GET the private webhook to inspect
+ * the most recently stored data; no examination content is sent.
+ */
+function testConnection() {
+ const ui=SpreadsheetApp.getUi();
+ const url=PropertiesService.getScriptProperties().getProperty('WEBHOOK_URL');
+ if(!url){ui.alert('Keine Webhook-URL gespeichert. Menü: Prüfungsplan → Webhook verbinden.');return;}
+ try {
+   const res=UrlFetchApp.fetch(url,{method:'get',muteHttpExceptions:true,followRedirects:false});
+   const status=res.getResponseCode();
+   if(status>=200 && status<300){
+     const body=res.getContentText();
+     let count='nicht bestimmbar';
+     try{
+       const parsed=JSON.parse(body);
+       const vars=parsed.merge_variables||parsed;
+       if(Array.isArray(vars.subjects))count=String(vars.subjects.length)+' Fachgruppen';
+     }catch(e){}
+     ui.alert('TRMNL erreichbar (HTTP '+status+'). Gespeicherte Daten: '+count+'.\n\nWenn noch keine Prüfungen erscheinen, jetzt „Jetzt synchronisieren“ ausführen.');
+   }else{
+     ui.alert('TRMNL-Verbindung fehlgeschlagen. HTTP '+status+'.\n'+res.getContentText().slice(0,250));
+   }
+ }catch(err){ui.alert('Verbindung fehlgeschlagen: '+err.message);}
 }
