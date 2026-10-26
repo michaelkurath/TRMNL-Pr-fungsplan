@@ -1,8 +1,4 @@
 <div class="layout layout--col gap--small">
-  <div class="title_bar">
-    <span class="title">Prüfungsplan</span>
-    <span class="instance">{{ updated }}</span>
-  </div>
   {% if exams.size > 0 %}
     <div style="display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:10px;width:100%;align-content:start;">
       {% for exam in exams limit:3 %}
@@ -21,3 +17,4 @@
     <div class="value">Keine bevorstehenden Prüfungen</div>
   {% endif %}
 </div>
+<div class="title_bar"><span class="title">Prüfungsplan</span><span class="instance">{{ updated }}</span></div>
