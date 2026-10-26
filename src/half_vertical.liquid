@@ -4,7 +4,7 @@
       {% for exam in exams limit:6 %}
         <div style="border-bottom:2px solid #999;padding:6px 4px;min-width:0;">
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px;">
-            <span style="font-size:23px;line-height:1.1;font-weight:800;">{{ exam.date_label }}</span>
+            <span style="font-size:20px;line-height:1.1;font-weight:800;">{{ exam.date_label }}</span>
             <span class="label">{% if exam.days == 0 %}HEUTE{% elsif exam.days == 1 %}MORGEN{% else %}{{ exam.days }} T{% endif %}</span>
           </div>
           <div style="font-size:20px;line-height:1.13;font-weight:800;text-transform:uppercase;overflow-wrap:anywhere;">{{ exam.subject | escape }}</div>
