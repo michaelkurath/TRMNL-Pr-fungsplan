@@ -1,4 +1,7 @@
+<style>.exam-qr .qr-code { display:block; width:100%; height:auto; }</style>
 <div class="layout layout--col gap--small">
+  <div style="display:flex;align-items:flex-start;gap:7px;width:100%;">
+    <div style="flex:1;min-width:0;">
   {% if exams.size > 0 %}
     <div style="display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:10px;width:100%;align-content:start;">
       {% for exam in exams limit:3 %}
@@ -16,5 +19,13 @@
   {% else %}
     <div class="value">Keine bevorstehenden Prüfungen</div>
   {% endif %}
+    </div>
+    {% if form_url != blank %}
+      <div class="exam-qr" style="flex:0 0 148px;width:148px;text-align:center;">
+        <div style="background:#fff;border:1px solid #333;padding:4px;">{{ form_url | qr_code }}</div>
+        <div class="label" style="font-weight:700;margin-top:5px;">NEUE PRÜFUNG</div>
+      </div>
+    {% endif %}
+  </div>
 </div>
 <div class="title_bar"><span class="title">Prüfungsplan</span><span class="instance">{{ updated }}</span></div>
