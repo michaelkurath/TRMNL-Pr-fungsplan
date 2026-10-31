@@ -1,5 +1,5 @@
 <style>
-  .exam-list .qr-code { display:block; width:100%; height:auto; }
+  .exam-qr .qr-code { display:block; width:100%; height:auto; }
 </style>
 <div class="layout layout--col gap--small">
   <div style="display:flex;align-items:flex-start;gap:10px;width:100%;min-width:0;">
@@ -23,7 +23,7 @@
     {% if form_url != blank %}
       <div class="exam-qr" style="flex:0 0 164px;width:164px;text-align:center;">
         <div style="background:white;border:1px solid #333;padding:4px;">{{ form_url | qr_code }}</div>
-        <div class="label" style="font-weight:700;margin-top:5px;">NEUE PRÜFUNG</div>
+        <div class="label" style="font-weight:700;margin-top:5px;">{% if entry_mode == 'sheet' %}TABELLE ÖFFNEN{% else %}NEUE PRÜFUNG{% endif %}</div>
         <div class="description">QR scannen</div>
       </div>
     {% endif %}
