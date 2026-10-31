@@ -21,6 +21,12 @@ TRMNL-QR-Code → Google Form (Datum, Fach, Thema, optionale Notiz) → Tabellen
 
 **Wichtig:** Nur wenn `setupGoogleForm()` erfolgreich gelaufen ist, funktioniert das Formular. Der QR-Link wird erst dann auf die Google-Forms-Adresse umgestellt. Die alte `MobileForm.html` wurde aus dem Repository entfernt.
 
+## QR-Code auch ohne Google-Formular
+
+Solange noch kein Google-Formular eingerichtet wurde, wird **ein QR-Code zum bestehenden privaten Google Sheet** übertragen und auf TRMNL mit **„TABELLE ÖFFNEN“** beschriftet. Das ermöglicht vorübergehend die direkte Eingabe ins Hauptblatt (nur mit bestehendem Google-Zugriffsrecht). Sobald `setupGoogleForm()` ausgeführt wurde, wechselt derselbe QR-Code zu **„NEUE PRÜFUNG“** und öffnet das Google-Formular.
+
+**Bei Umstieg vom früheren Script:** Den aktuellen Inhalt von `Code.gs` ins gebundene Apps Script kopieren, speichern, im Google Sheet **Prüfungsplan → Jetzt synchronisieren** ausführen und danach die TRMNL-GitHub-Synchronisierung/Force-Refresh auslösen. Nur das GitHub-Liquid-Layout zu aktualisieren reicht nicht; die neue QR-URL kommt aus dem Apps Script via Webhook.
+
 ## A4-Druckvorlage
 
 Das bestehende Tabellenblatt **Druckvorlage** enthält jetzt eine Live-Formel: Es zeigt die nächsten **18** offenen Prüfungstermine (Datum, Fach, Thema, Notiz) in chronologischer Reihenfolge und darunter **10 leere Zeilen** für handschriftliche Ergänzungen.
