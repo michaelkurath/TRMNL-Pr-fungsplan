@@ -14,9 +14,8 @@ function setup(){
  if(!t.includes('syncToTrmnl'))ScriptApp.newTrigger('syncToTrmnl').timeBased().everyHours(6).create();
  if(!t.includes('onSheetEdit'))ScriptApp.newTrigger('onSheetEdit').forSpreadsheet(ss).onEdit().create();
 }
-function onOpen(){SpreadsheetApp.getUi().createMenu('Prüfungsplan').addItem('Webhook verbinden','setWebhook').addItem('Jetzt synchronisieren','syncToTrmnl').addItem('Verbindung testen','testConnection').addItem('Druckvorlage erstellen','createPrintSheet').addSeparator()
- .addItem('QR-Formular: Zugangscode festlegen','setFormAccessCode')
- .addItem('QR-Formular: URL verbinden','setFormUrl').addToUi();}
+function onOpen(){SpreadsheetApp.getUi().createMenu('Prüfungsplan').addItem('Webhook verbinden','setWebhook').addItem('Jetzt synchronisieren','syncToTrmnl').addItem('Verbindung testen','testConnection').addItem('Druckvorlage aktualisieren','createPrintSheet').addSeparator()
+ .addItem('Google Formular einrichten','setupGoogleForm').addToUi();}
 function setWebhook(){
  const ui=SpreadsheetApp.getUi(),a=ui.prompt('TRMNL Webhook URL','Geheime URL einfügen:',ui.ButtonSet.OK_CANCEL);
  if(a.getSelectedButton()!==ui.Button.OK)return;
@@ -88,121 +87,133 @@ function testConnection() {
 function createPrintSheet(){
  const ss=SpreadsheetApp.getActiveSpreadsheet();
  const source=ss.getSheetByName(TAB);
- if(!source)throw Error('Blatt Pruefungen fehlt – setup() ausführen.');
+ if(!source)throw Error('Pruefungen fehlt – setup() ausführen.');
  const name='Druckvorlage';
  let sh=ss.getSheetByName(name)||ss.insertSheet(name);
- sh.clear();sh.clearFormats();
- sh.getRange('A1:E1').merge().setValue('PRÜFUNGSPLAN – EINTRAGEN & ABHAKEN');
- sh.getRange('A2:E2').merge().setValue('Weitere Prüfungen handschriftlich eintragen. Danach in das Blatt „Pruefungen“ übertragen.');
- sh.getRange('A4:E4').setValues([['Datum','Schulfach','Prüfung / Thema','Notizen / Lernstoff','Erledigt']]);
- const now=Utilities.formatDate(new Date(),'Europe/Zurich','yyyy-MM-dd'),rows=[];
- if(source.getLastRow()>1)source.getRange(2,1,source.getLastRow()-1,5).getValues().forEach(r=>{
-   if(!(r[0] instanceof Date)||Utilities.formatDate(r[0],'Europe/Zurich','yyyy-MM-dd')<now||String(r[4]).trim().toLowerCase()==='erledigt')return;
-   rows.push([r[0],r[1],r[2],r[3],'']);
- });
- rows.sort((a,b)=>a[0]-b[0]);
- const filled=rows.slice(0,12);
- const blankCount=Math.max(12,20-filled.length);
- const table=filled.concat(Array.from({length:blankCount},()=>['','','','','']));
- sh.getRange(5,1,table.length,5).setValues(table).setNumberFormat('@');
- if(filled.length)sh.getRange(5,1,filled.length,1).setNumberFormat('dd.MM.yyyy');
- sh.getRange(5,1,table.length,5).setBorder(true,true,true,true,true,true,'#c4c4c4',SpreadsheetApp.BorderStyle.SOLID);
- sh.setColumnWidths(1,1,95);sh.setColumnWidths(2,1,135);sh.setColumnWidths(3,1,220);sh.setColumnWidths(4,1,230);sh.setColumnWidths(5,1,70);
- sh.setRowHeights(5,table.length,34);
- sh.getRange('A1:E1').setFontSize(17).setFontWeight('bold').setBackground('#eeeeee');
- sh.getRange('A2:E2').setFontSize(9);
+ // Intentionally only the generated print view is cleared, never Pruefungen.
+ sh.getRange('A1:E60').breakApart();
+ sh.getRange('A1:E60').clearContent().clearFormat();
+ sh.getRange('A1:E1').merge().setValue('PRÜFUNGSPLAN');
+ sh.getRange('A2:E2').merge().setValue('Chronologisch · Weitere Termine unten handschriftlich eintragen');
+ sh.getRange('A4:E4').setValues([['Datum','Fach','Prüfung / Thema','Notizen / Lernstoff','✓']]);
+ // 20 dynamic entries + 12 handwritten rows. Source stays editable independently.
+ const filterFormula='=IFERROR(ARRAY_CONSTRAIN(SORT(FILTER({Pruefungen!A2:A,Pruefungen!B2:B,Pruefungen!C2:C,Pruefungen!D2:D},Pruefungen!A2:A>=TODAY(),LOWER(Pruefungen!E2:E)<>"erledigt",Pruefungen!A2:A<>"",Pruefungen!B2:B<>"",Pruefungen!C2:C<>""),1,TRUE),20,4),"")';
+ sh.getRange('A5').setFormula(filterFormula);
+ sh.getRange('A5:A24').setNumberFormat('dd.MM.yyyy');
+ sh.getRange('A5:E36').setBorder(true,true,true,true,true,true,'#bdbdbd',SpreadsheetApp.BorderStyle.SOLID);
+ sh.getRange('A25:E25').setBackground('#eeeeee');
+ sh.getRange('A25:E25').setValues([['NEUE TERMINE (handschriftlich)','','','','']]);
+ sh.getRange('A25:E25').mergeAcross();
+ sh.setColumnWidth(1,95);sh.setColumnWidth(2,130);sh.setColumnWidth(3,230);
+ sh.setColumnWidth(4,255);sh.setColumnWidth(5,40);
+ sh.setRowHeights(5,32,28);
+ sh.getRange('A1:E1').setFontSize(18).setFontWeight('bold').setBackground('#f1f1f1');
+ sh.getRange('A2:E2').setFontSize(10);
  sh.getRange('A4:E4').setFontWeight('bold').setBackground('#dddddd');
  sh.setFrozenRows(4);
  sh.activate();
- SpreadsheetApp.getUi().alert('Druckvorlage erstellt: Datei → Drucken → Aktuelles Tabellenblatt, Querformat, an Seitenbreite anpassen. Das Blatt „Pruefungen“ wurde nicht verändert.');
+ SpreadsheetApp.getUi().alert('Druckvorlage aktualisiert. Drucke A1:E36 als ausgewählte Zellen im Querformat, auf Seitenbreite angepasst. Die Liste aktualisiert sich automatisch aus Pruefungen.');
 }
 
+/**
+ * Creates a standard Google Form once, reuses the existing form on later calls.
+ * A regular respondent URL is sent to TRMNL as form_url for the existing QR.
+ */
+function setupGoogleForm() {
+ const ss=SpreadsheetApp.getActiveSpreadsheet();
+ const props=PropertiesService.getScriptProperties();
+ props.setProperty('SPREADSHEET_ID',ss.getId());
+ let form;
+ const existing=props.getProperty('GOOGLE_FORM_ID');
+ if(existing){
+   form=FormApp.openById(existing);
+ } else {
+   form=FormApp.create('Prüfungsplan – Prüfung eintragen');
+   form.setDescription('Neue Prüfung erfassen – erscheint auf dem TRMNL und dem Ausdruck.');
+   form.setCollectEmail(false);
+   form.setShowLinkToRespondAgain(true);
+   form.setConfirmationMessage('Prüfung erfasst. Du kannst eine weitere Prüfung eintragen.');
+   form.addDateItem().setTitle('Datum').setIncludesYear(true).setRequired(true);
+   const subjects=availableSubjects_(ss.getSheetByName(TAB));
+   form.addListItem().setTitle('Fach').setChoiceValues(subjects).setRequired(true);
+   form.addTextItem().setTitle('Thema').setRequired(true);
+   form.addParagraphTextItem().setTitle('Notiz').setRequired(false);
+   form.setDestination(FormApp.DestinationType.SPREADSHEET,ss.getId());
+   props.setProperty('GOOGLE_FORM_ID',form.getId());
+ }
+ // Form triggers are required: onEdit does not fire on form submission.
+ const current=ScriptApp.getProjectTriggers();
+ if(!current.some(t=>t.getHandlerFunction()==='onExamFormSubmit')){
+   ScriptApp.newTrigger('onExamFormSubmit').forForm(form).onFormSubmit().create();
+ }
+ const formUrl=form.getPublishedUrl();
+ props.setProperty('FORM_URL',formUrl);
+ try { syncToTrmnl(); }
+ catch(err){console.error('Form created, but TRMNL sync needs retry: '+err.message);}
+ SpreadsheetApp.getUi().alert('Google Formular eingerichtet:\n'+formUrl+'\n\nEin Testeintrag ist empfohlen. Den Link kannst du mit dem Handy öffnen. TRMNL erhält den QR-Code nach der Synchronisierung.');
+ return formUrl;
+}
 
-/** QR intake form. The QR code contains only the public web app URL, never credentials. */
-function getPlannerSpreadsheet() {
+function availableSubjects_(sheet){
+ const subjects=ORDER.slice();
+ // Preserve subjects already used in the existing spreadsheet (e.g. RZG, RKE, Kochen).
+ if(sheet&&sheet.getLastRow()>1){
+   sheet.getRange(2,2,sheet.getLastRow()-1,1).getValues().forEach(row=>{
+     const subject=String(row[0]||'').trim();
+     if(subject&&!subjects.includes(subject))subjects.push(subject);
+   });
+ }
+ return subjects;
+}
+
+function getPlannerSpreadsheet(){
  const id=PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
  return id?SpreadsheetApp.openById(id):SpreadsheetApp.getActiveSpreadsheet();
 }
-function formHash_(salt,code) {
- return Utilities.base64Encode(Utilities.computeDigest(
-   Utilities.DigestAlgorithm.SHA_256,salt+':'+String(code),Utilities.Charset.UTF_8));
+
+function parseExamDate_(input){
+ if(input instanceof Date&&!isNaN(input.getTime()))return input;
+ const str=String(input||'').trim();
+ let m=str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+ if(m)return validExamDate_(+m[1],+m[2],+m[3]);
+ m=str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+ if(m)return validExamDate_(+m[3],+m[2],+m[1]);
+ m=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+ if(m)return validExamDate_(+m[3],+m[1],+m[2]); // Form date in US notation
+ throw Error('Ungültiges Prüfungsdatum: '+str);
 }
-function setFormAccessCode() {
- const ui=SpreadsheetApp.getUi();
- const answer=ui.prompt('QR-Formular – Zugangscode',
-   'Lege einen privaten Code mit mindestens 8 Zeichen fest. Nur wer diesen Code kennt, kann Prüfungen eintragen. Den Code NICHT auf GitHub speichern.',
-   ui.ButtonSet.OK_CANCEL);
- if(answer.getSelectedButton()!==ui.Button.OK)return;
- const code=answer.getResponseText();
- if(code.length<8||code.length>128)throw Error('Zugangscode: 8 bis 128 Zeichen erforderlich.');
- const salt=Utilities.getUuid();
+function validExamDate_(year,month,day){
+ const date=new Date(year,month-1,day,12);
+ if(date.getFullYear()!==year||date.getMonth()!==month-1||date.getDate()!==day)
+   throw Error('Ungültiges Prüfungsdatum.');
+ return date;
+}
+
+/** Runs from the installable Google Forms trigger, not from an edit trigger. */
+function onExamFormSubmit(event){
+ if(!event||!event.response)throw Error('Form-trigger event fehlt.');
  const props=PropertiesService.getScriptProperties();
- props.setProperty('FORM_SALT',salt);
- props.setProperty('FORM_CODE_HASH',formHash_(salt,code));
- CacheService.getScriptCache().remove('FORM_FAILED_COUNT');
- ui.alert('Zugangscode gespeichert. Der Code wird nicht im QR-Code oder Repository hinterlegt.');
-}
-function setFormUrl() {
- const ui=SpreadsheetApp.getUi();
- const answer=ui.prompt('URL der Google Apps Script Web-App',
-   'Nach Bereitstellen → Neue Bereitstellung → Web-App die URL auf /exec hier einfügen.',
-   ui.ButtonSet.OK_CANCEL);
- if(answer.getSelectedButton()!==ui.Button.OK)return;
- const url=answer.getResponseText().trim();
- if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url))
-   throw Error('Bitte die originale Google Apps Script Web-App-URL verwenden (endet auf /exec).');
- PropertiesService.getScriptProperties().setProperty('FORM_URL',url);
- syncToTrmnl();
- ui.alert('QR-Formular verbunden und an TRMNL übertragen. Die Vorschau/Anzeige aktualisieren.');
-}
-function doGet() {
- return HtmlService.createHtmlOutputFromFile('MobileForm')
-   .setTitle('Prüfung eintragen')
-   .addMetaTag('viewport','width=device-width, initial-scale=1');
-}
-/** Called only through google.script.run in MobileForm.html. */
-function submitExamFromForm(input) {
- const props=PropertiesService.getScriptProperties();
- const salt=props.getProperty('FORM_SALT'), expected=props.getProperty('FORM_CODE_HASH');
- if(!salt||!expected)throw Error('Formular noch nicht eingerichtet. Zugangscode zuerst im Google Sheet festlegen.');
+ const responseId=event.response.getId();
+ const doneKey=responseId?'FORM_IMPORTED_'+responseId:'';
  const lock=LockService.getScriptLock();
- lock.waitLock(15000);
+ lock.waitLock(30000);
  try {
-   const cache=CacheService.getScriptCache();
-   const attempts=Number(cache.get('FORM_FAILED_COUNT')||'0');
-   if(attempts>=10)throw Error('Zu viele falsche Versuche. Bitte in 15 Minuten erneut versuchen.');
-   const supplied=String((input||{}).accessCode||'');
-   const candidate=formHash_(salt,supplied);
-   if(candidate!==expected) {
-     cache.put('FORM_FAILED_COUNT',String(attempts+1),900);
-     throw Error('Zugangscode falsch.');
-   }
-   cache.remove('FORM_FAILED_COUNT');
-   const rawDate=String(input.date||'');
-   if(!/^\d{4}-\d{2}-\d{2}$/.test(rawDate))throw Error('Bitte ein gültiges Datum wählen.');
-   const parts=rawDate.split('-').map(Number);
-   const date=new Date(parts[0],parts[1]-1,parts[2],12);
-   if(date.getFullYear()!==parts[0]||date.getMonth()!==parts[1]-1||date.getDate()!==parts[2])
-     throw Error('Ungültiges Datum.');
-   const today=Utilities.formatDate(new Date(),'Europe/Zurich','yyyy-MM-dd');
-   if(rawDate<today)throw Error('Das Datum liegt in der Vergangenheit.');
-   const subject=String(input.subject||'').trim();
-   if(!ORDER.includes(subject))throw Error('Bitte ein Schulfach auswählen.');
-   const topic=String(input.topic||'').trim();
-   const note=String(input.note||'').trim();
-   if(!topic||topic.length>90||note.length>75)throw Error('Thema erforderlich (max. 90 Zeichen); Notiz max. 75 Zeichen.');
+   if(doneKey&&props.getProperty(doneKey))return; // avoid duplicate imports
+   const answers={};
+   event.response.getItemResponses().forEach(a=>{answers[a.getItem().getTitle()]=a.getResponse();});
+   const date=parseExamDate_(answers.Datum);
+   const subject=String(answers.Fach||'').trim();
+   const topic=String(answers.Thema||'').trim();
+   const note=String(answers.Notiz||'').trim();
+   if(!subject||!topic)throw Error('Fach oder Thema fehlt.');
    const sheet=getPlannerSpreadsheet().getSheetByName(TAB);
-   if(!sheet)throw Error('Blatt Pruefungen fehlt: setup() ausführen.');
-   sheet.appendRow([date,subject,topic,note,'Offen']);
+   if(!sheet)throw Error('Blatt Pruefungen fehlt.');
+   sheet.appendRow([date,subject,topic.slice(0,90),note.slice(0,75),'Offen']);
    SpreadsheetApp.flush();
-   try {
-     syncToTrmnl();
-     return {saved:true,synced:true,message:'Prüfung gespeichert und an TRMNL übertragen.'};
-   } catch(err) {
-     console.error('Prüfung gespeichert, TRMNL-Sync fehlgeschlagen: '+err.message);
-     return {saved:true,synced:false,message:'Prüfung in Google Sheets gespeichert. TRMNL-Synchronisierung fehlgeschlagen; später im Sheet erneut synchronisieren.'};
-   }
+   if(doneKey)props.setProperty(doneKey,'1');
  } finally {
    lock.releaseLock();
  }
+ try {syncToTrmnl();}
+ catch(err){console.error('Prüfung gespeichert; TRMNL-Synchronisierung fehlgeschlagen: '+err.message);}
 }
