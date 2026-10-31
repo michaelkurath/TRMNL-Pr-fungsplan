@@ -6,7 +6,7 @@ static_data: ''
 polling_verb: get
 framework_version: 3.4.3
 serverless_language: ''
-refresh_interval_floor: ''
+refresh_interval_floor: '360'
 polling_url: ''
 polling_headers: ''
 polling_body: ''
@@ -15,4 +15,4 @@ oauth_enabled: 'false'
 oauth_pkce_enabled: 'no'
 name: Prüfungsplan
 description: ''
-refresh_interval: 15
+refresh_interval: 360
