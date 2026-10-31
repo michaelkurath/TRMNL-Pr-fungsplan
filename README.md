@@ -27,6 +27,10 @@ Das bestehende Tabellenblatt **Druckvorlage** enthält jetzt eine Live-Formel: E
 
 **Google Sheets → Druckvorlage → Datei → Drucken → Ausgewählte Zellen A1:E33 → Querformat → An Seitenbreite anpassen.** Optional das Blatt über **Prüfungsplan → Druckvorlage aktualisieren** neu gestalten. Druckvorlage ist nur zum Drucken – Einträge immer über das Formular oder im Blatt `Pruefungen` machen.
 
+## TRMNL-Listenansicht
+
+Alle vier Bildschirmformate verwenden eine **einspaltige, chronologische Liste** (keine Kacheln / Fachgruppen). Jede Zeile zeigt links das Datum, daneben Schulfach in gross und fett, darunter das Prüfungsthema sowie einen Countdown. Der QR-Code für neue Prüfungen bleibt rechts sichtbar, sobald die Formular-URL eingerichtet ist. Die standardmässige TRMNL-Title-Bar steht ausserhalb des Inhaltslayouts. Aus Platzgründen werden in Full bis 7, Half Horizontal 3, Half Vertical 5 und Quadrant 2 Prüfungen dargestellt.
+
 ## Funktionen
 
 - Datum, Fach und Thema auf TRMNL; Countdown und QR-Code
