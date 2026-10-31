@@ -4,7 +4,7 @@
     <div style="flex:1;min-width:0;">
   {% if exams.size > 0 %}
     <div style="display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:10px;width:100%;align-content:start;">
-      {% for exam in exams limit:3 %}
+      {% for exam in exams limit:2 %}
         <div style="border-bottom:2px solid #999;padding:6px 4px;min-width:0;">
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px;">
             <span style="font-size:17px;line-height:1.1;font-weight:800;">{{ exam.date_label }}</span>
@@ -12,7 +12,6 @@
           </div>
           <div style="font-size:18px;line-height:1.13;font-weight:800;text-transform:uppercase;overflow-wrap:anywhere;">{{ exam.subject | escape }}</div>
           <div style="font-size:14px;line-height:1.2;overflow-wrap:anywhere;">{{ exam.topic | escape }}</div>
-          {% if exam.note != blank %}<div class="description">{{ exam.note | escape }}</div>{% endif %}
         </div>
       {% endfor %}
     </div>
