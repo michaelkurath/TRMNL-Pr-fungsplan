@@ -72,7 +72,7 @@ function testConnection() {
      try{
        const parsed=JSON.parse(body);
        const vars=parsed.merge_variables||parsed;
-       if(Array.isArray(vars.subjects))count=String(vars.subjects.length)+' Fachgruppen';
+       if(Array.isArray(vars.exams))count=String(vars.exams.length)+' Prüfungen';
      }catch(e){}
      ui.alert('TRMNL erreichbar (HTTP '+status+'). Gespeicherte Daten: '+count+'.\n\nWenn noch keine Prüfungen erscheinen, jetzt „Jetzt synchronisieren“ ausführen.');
    }else{
@@ -96,23 +96,23 @@ function createPrintSheet(){
  sh.getRange('A1:E1').merge().setValue('PRÜFUNGSPLAN');
  sh.getRange('A2:E2').merge().setValue('Chronologisch · Weitere Termine unten handschriftlich eintragen');
  sh.getRange('A4:E4').setValues([['Datum','Fach','Prüfung / Thema','Notizen / Lernstoff','✓']]);
- // 20 dynamic entries + 12 handwritten rows. Source stays editable independently.
- const filterFormula='=IFERROR(ARRAY_CONSTRAIN(SORT(FILTER({Pruefungen!A2:A,Pruefungen!B2:B,Pruefungen!C2:C,Pruefungen!D2:D},Pruefungen!A2:A>=TODAY(),LOWER(Pruefungen!E2:E)<>"erledigt",Pruefungen!A2:A<>"",Pruefungen!B2:B<>"",Pruefungen!C2:C<>""),1,TRUE),20,4),"")';
+ // 18 dynamic entries + 10 handwritten rows. Source stays editable independently.
+ const filterFormula='=IFERROR(ARRAY_CONSTRAIN(SORT(FILTER({Pruefungen!A2:A,Pruefungen!B2:B,Pruefungen!C2:C,Pruefungen!D2:D},Pruefungen!A2:A>=TODAY(),LOWER(Pruefungen!E2:E)<>"erledigt",Pruefungen!A2:A<>"",Pruefungen!B2:B<>"",Pruefungen!C2:C<>""),1,TRUE),18,4),"")';
  sh.getRange('A5').setFormula(filterFormula);
- sh.getRange('A5:A24').setNumberFormat('dd.MM.yyyy');
- sh.getRange('A5:E36').setBorder(true,true,true,true,true,true,'#bdbdbd',SpreadsheetApp.BorderStyle.SOLID);
- sh.getRange('A25:E25').setBackground('#eeeeee');
- sh.getRange('A25:E25').setValues([['NEUE TERMINE (handschriftlich)','','','','']]);
- sh.getRange('A25:E25').mergeAcross();
+ sh.getRange('A5:A22').setNumberFormat('dd.MM.yyyy');
+ sh.getRange('A5:E33').setBorder(true,true,true,true,true,true,'#bdbdbd',SpreadsheetApp.BorderStyle.SOLID);
+ sh.getRange('A23:E23').setBackground('#eeeeee');
+ sh.getRange('A23:E23').setValues([['NEUE TERMINE (handschriftlich)','','','','']]);
+ sh.getRange('A23:E23').mergeAcross();
  sh.setColumnWidth(1,95);sh.setColumnWidth(2,130);sh.setColumnWidth(3,230);
  sh.setColumnWidth(4,255);sh.setColumnWidth(5,40);
- sh.setRowHeights(5,32,28);
+ sh.setRowHeights(5,29,26);
  sh.getRange('A1:E1').setFontSize(18).setFontWeight('bold').setBackground('#f1f1f1');
  sh.getRange('A2:E2').setFontSize(10);
  sh.getRange('A4:E4').setFontWeight('bold').setBackground('#dddddd');
  sh.setFrozenRows(4);
  sh.activate();
- SpreadsheetApp.getUi().alert('Druckvorlage aktualisiert. Drucke A1:E36 als ausgewählte Zellen im Querformat, auf Seitenbreite angepasst. Die Liste aktualisiert sich automatisch aus Pruefungen.');
+ SpreadsheetApp.getUi().alert('Druckvorlage aktualisiert. Drucke A1:E33 als ausgewählte Zellen im Querformat, auf Seitenbreite angepasst. Die Liste aktualisiert sich automatisch aus Pruefungen.');
 }
 
 /**
@@ -148,6 +148,9 @@ function setupGoogleForm() {
  }
  const formUrl=form.getPublishedUrl();
  props.setProperty('FORM_URL',formUrl);
+ // Deactivate credentials from the retired custom web app, if present.
+ props.deleteProperty('FORM_CODE_HASH');
+ props.deleteProperty('FORM_SALT');
  try { syncToTrmnl(); }
  catch(err){console.error('Form created, but TRMNL sync needs retry: '+err.message);}
  SpreadsheetApp.getUi().alert('Google Formular eingerichtet:\n'+formUrl+'\n\nEin Testeintrag ist empfohlen. Den Link kannst du mit dem Handy öffnen. TRMNL erhält den QR-Code nach der Synchronisierung.');
