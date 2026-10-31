@@ -98,7 +98,7 @@ function sendToTrmnl_(){
  if(s&&s.getLastRow()>1)s.getRange(2,1,s.getLastRow()-1,5).getValues().forEach((r,i)=>{
   if(!r[0]||!r[1]||!r[2]||String(r[4]).trim().toLowerCase()==='erledigt')return;
   let d=r[0];
-  if(!(d instanceof Date)){const m=String(d).match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})$/);d=m?new Date(+m[3],+m[2]-1,+m[1],12):null;}
+  if(!(d instanceof Date)){const m=String(d).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);d=m?new Date(+m[3],+m[2]-1,+m[1],12):null;}
   if(!d||isNaN(d.getTime()))throw Error('Ungültiges Datum in Zeile '+(i+2));
   const key=Utilities.formatDate(d,tz,'yyyy-MM-dd');if(key<today)return;
   const days=Math.round((Date.parse(key+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000);
@@ -126,7 +126,7 @@ function showSyncStatus(){
    'Ausstehende Änderungen: '+(p.getProperty('SYNC_PENDING')==='1'?'Ja':'Nein'),
    'Letzte erfolgreiche Übertragung: '+(date?Utilities.formatDate(new Date(date),'Europe/Zurich','dd.MM.yyyy HH:mm:ss'):'Noch keine'),
    'TRMNL-Webhook: '+(p.getProperty('WEBHOOK_URL')?'verbunden':'nicht verbunden')
- ].join('\\n');
+ ].join('\n');
  SpreadsheetApp.getUi().alert(info);
 }
 
