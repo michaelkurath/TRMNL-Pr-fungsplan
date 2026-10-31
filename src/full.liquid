@@ -1,32 +1,35 @@
-<style>.exam-qr .qr-code { display:block; width:100%; height:auto; }</style>
+<style>
+  .exam-list .qr-code { display:block; width:100%; height:auto; }
+</style>
 <div class="layout layout--col gap--small">
-  <div style="display:flex;align-items:flex-start;gap:12px;width:100%;">
-    <div style="flex:1;min-width:0;">
-  {% if exams.size > 0 %}
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;align-content:start;">
-      {% for exam in exams limit:6 %}
-        <div style="border-bottom:2px solid #999;padding:6px 4px;min-width:0;">
-          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px;">
-            <span style="font-size:24px;line-height:1.1;font-weight:800;">{{ exam.date_label }}</span>
-            <span class="label">{% if exam.days == 0 %}HEUTE{% elsif exam.days == 1 %}MORGEN{% else %}{{ exam.days }} T{% endif %}</span>
+  <div style="display:flex;align-items:flex-start;gap:10px;width:100%;min-width:0;">
+    <div class="exam-list" style="flex:1;min-width:0;">
+      {% if exams != blank and exams.size > 0 %}
+        {% for exam in exams limit:7 %}
+          <div style="display:grid;grid-template-columns:87px minmax(0,1fr) 64px;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid #999;min-width:0;">
+            <div style="font-size:23px;line-height:1.12;font-weight:800;white-space:nowrap;">{{ exam.date_label | escape }}</div>
+            <div style="min-width:0;">
+              <div style="font-size:22px;line-height:1.12;font-weight:800;text-transform:uppercase;overflow-wrap:anywhere;">{{ exam.subject | escape }}</div>
+              <div style="font-size:17px;line-height:1.18;overflow-wrap:anywhere;">{{ exam.topic | escape }}</div>
+              {% if exam.note != blank %}<div class="description">{{ exam.note | escape }}</div>{% endif %}
+            </div>
+            <div class="label" style="text-align:right;font-weight:700;">{% if exam.days == 0 %}HEUTE{% elsif exam.days == 1 %}MORGEN{% else %}{{ exam.days }} T{% endif %}</div>
           </div>
-          <div style="font-size:23px;line-height:1.13;font-weight:800;text-transform:uppercase;overflow-wrap:anywhere;">{{ exam.subject | escape }}</div>
-          <div style="font-size:18px;line-height:1.2;overflow-wrap:anywhere;">{{ exam.topic | escape }}</div>
-          {% if exam.note != blank %}<div class="description">{{ exam.note | escape }}</div>{% endif %}
-        </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class="value">Keine bevorstehenden Prüfungen</div>
-  {% endif %}
+        {% endfor %}
+      {% else %}
+        <div class="value">Keine bevorstehenden Prüfungen</div>
+      {% endif %}
     </div>
     {% if form_url != blank %}
-      <div class="exam-qr" style="flex:0 0 174px;width:174px;text-align:center;">
-        <div style="background:#fff;border:1px solid #333;padding:5px;">{{ form_url | qr_code }}</div>
-        <div class="label" style="font-weight:700;margin-top:6px;">NEUE PRÜFUNG</div>
-        <div class="description">QR-Code scannen</div>
+      <div class="exam-qr" style="flex:0 0 164px;width:164px;text-align:center;">
+        <div style="background:white;border:1px solid #333;padding:4px;">{{ form_url | qr_code }}</div>
+        <div class="label" style="font-weight:700;margin-top:5px;">NEUE PRÜFUNG</div>
+        <div class="description">QR scannen</div>
       </div>
     {% endif %}
   </div>
 </div>
-<div class="title_bar"><span class="title">Prüfungsplan</span><span class="instance">{{ updated }}</span></div>
+<div class="title_bar">
+  <span class="title">Prüfungsplan</span>
+  <span class="instance">{{ updated }}</span>
+</div>
