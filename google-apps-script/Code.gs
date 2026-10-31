@@ -47,8 +47,12 @@ function syncToTrmnl(){
  // Chronologische Liste, unabhängig vom Fach. Bei gleichem Datum alphabetisch sortieren.
  items.sort((a,b)=>a.date.localeCompare(b.date)||a.subject.localeCompare(b.subject)||a.topic.localeCompare(b.topic));
  const chosen=items.slice(0,30);
+ // Always provide a scannable destination. Until Google Forms is configured,
+ // the QR leads to the private, access-controlled source sheet instead.
  const formUrl=PropertiesService.getScriptProperties().getProperty('FORM_URL')||'';
- const data={merge_variables:{exams:chosen,total:items.length,updated:Utilities.formatDate(new Date(),tz,'dd.MM. HH:mm'),form_url:formUrl}};
+ const entryUrl=formUrl||getPlannerSpreadsheet().getUrl();
+ const entryMode=formUrl?'form':'sheet';
+ const data={merge_variables:{exams:chosen,total:items.length,updated:Utilities.formatDate(new Date(),tz,'dd.MM. HH:mm'),form_url:entryUrl,entry_mode:entryMode}};
  while(JSON.stringify(data).length>1800&&chosen.length>1)chosen.pop();
  if(JSON.stringify(data).length>1800)throw Error('Payload zu gross');
  const response=UrlFetchApp.fetch(url,{method:'post',contentType:'application/json',payload:JSON.stringify(data),muteHttpExceptions:true});
