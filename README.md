@@ -45,7 +45,22 @@ Alle vier Bildschirmformate verwenden eine **einspaltige, chronologische Liste**
 - Bei Form-Absendung automatisch ins Hauptblatt übernommen und an TRMNL gesendet
 - Bestehende editierbare Hauptliste `Pruefungen` bleibt erhalten
 - Bestehende Webhook-Konfiguration muss **nicht** erneut eingegeben werden
-- Manuelle Synchronisierung im Sheet und periodische Synchronisierung alle sechs Stunden
+- Automatischer Synchronisierungs-Check jede Minute mit sofortigem Push, sobald eine Änderung vorliegt und die 60-Sekunden-Sendesperre abgelaufen ist
+- Fehlerhafte Übertragungen werden automatisch erneut versucht; die Änderung bleibt als ausstehend markiert
+- Ohne Änderungen nur ein Sicherheitsabgleich alle sechs Stunden oder beim Tageswechsel (Countdown und vergangene Prüfungen)
+- Manuelle Synchronisierung über das Sheet-Menü weiterhin jederzeit möglich
+
+## Synchronisierung (ab November 2026)
+
+**Nach einem Update von `Code.gs` unbedingt einmal `setup()` im gebundenen Apps Script ausführen.** Das alte 6-Stunden-Zeittrigger-Verfahren wird dadurch ersetzt: der neue Trigger `syncPendingChanges` prüft **jede Minute**, ob etwas zu synchronisieren ist. Bereits vorhandene Termine, das Google Formular und die Webhook-URL werden dabei nicht gelöscht.
+
+- **Direkte Änderungen in `Pruefungen`:** `onSheetEdit` markiert die Daten als geändert. Wenn die letzte erfolgreiche Übertragung mindestens 60 Sekunden zurückliegt, erfolgt die Synchronisierung gleich; sonst beim nächsten Hintergrundlauf nach Ablauf der Sperre.
+- **Neue Prüfungen aus Google Forms:** Der Formular-Trigger übernimmt den Termin, markiert die Änderung als ausstehend und stösst den gleichen Sync-Weg an.
+- **HTTP-Fehler/Netzausfall:** Die Änderung bleibt vorgemerkt und der nächste Hintergrundlauf probiert es erneut.
+- **Keine Änderungen:** Der Minuten-Trigger sendet nichts; ein Sicherheitsabgleich erfolgt etwa alle 6 Stunden sowie beim Tageswechsel für aktuelle Countdowns.
+- **Kontrolle:** In Google Sheets **Prüfungsplan → Sync-Status anzeigen** zeigt, ob der Trigger existiert, ob Änderungen ausstehen und wann die letzte Übertragung erfolgreich war.
+
+Die Trigger laufen auf Googles Infrastruktur und nicht sekundengenau. Die Datenübertragung erfolgt im Normalfall innerhalb von ungefähr ein bis zwei Minuten; der sichtbare TRMNL-Geräteinhalt aktualisiert sich zusätzlich nach dessen eigenem Refresh-Zyklus.
 
 ## Datenschutz und Berechtigungen
 
