@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f4f5f6; color: #18202a; }
+    main { max-width: 520px; margin: 0 auto; padding: 22px 18px 40px; }
+    h1 { margin: 0 0 5px; font-size: 26px; letter-spacing: -.5px; }
+    p { color: #59636d; line-height: 1.45; margin: 0 0 20px; }
+    form { padding: 22px; background: #fff; border: 1px solid #dbe0e5; border-radius: 14px; }
+    label { display: block; margin: 0 0 16px; font-size: 14px; font-weight: 650; }
+    input, select, textarea { display: block; width: 100%; padding: 12px; font: inherit; font-weight: 400; font-size: 17px; margin-top: 7px; color: #18202a; background: #fff; border: 1px solid #aab4bd; border-radius: 7px; }
+    textarea { min-height: 75px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #275a84; outline-offset: 1px; }
+    .hint { display: block; font-size: 12px; color: #687480; font-weight: 400; margin-top: 5px; }
+    button { width: 100%; padding: 14px; border: 0; border-radius: 8px; font-weight: 700; font-size: 17px; background: #18202a; color: white; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: progress; }
+    #status { margin-top: 15px; padding: 12px; display: none; border-radius: 8px; font-weight: 600; line-height: 1.4; }
+    #status.ok { display:block; background: #e2f0e3; color: #165422; }
+    #status.error { display:block; background: #fbe6e6; color: #7b1d1d; }
+    #status.warning { display:block; background: #fff0c7; color: #5c4200; }
+    footer { margin-top: 16px; text-align:center; color:#687480; font-size:12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Neue Prüfung</h1>
+  <p>Termin eintragen. Die Prüfung erscheint automatisch auf dem TRMNL.</p>
+  <form id="examForm">
+    <label for="date">Prüfungsdatum *
+      <input id="date" name="date" type="date" required>
+    </label>
+    <label for="subject">Schulfach *
+      <select id="subject" name="subject" required>
+        <option value="">Bitte wählen</option>
+        <option>Mathematik</option><option>Deutsch</option>
+        <option>Englisch</option><option>Französisch</option>
+        <option>NMG</option><option>Geschichte</option>
+        <option>Geografie</option><option>Biologie</option>
+        <option>Physik</option><option>Chemie</option>
+        <option>Informatik</option><option>Musik</option>
+        <option>Sport</option><option>Andere</option>
+      </select>
+    </label>
+    <label for="topic">Prüfungsthema *
+      <input id="topic" name="topic" type="text" required maxlength="90" placeholder="z. B. Bruchrechnen">
+    </label>
+    <label for="note">Notizen / Lernstoff
+      <textarea id="note" name="note" maxlength="75" placeholder="z. B. Seiten 32–40"></textarea>
+    </label>
+    <label for="accessCode">Privater Zugangscode *
+      <input id="accessCode" name="accessCode" type="password" autocomplete="current-password" minlength="8" required placeholder="Zugangscode eingeben">
+      <span class="hint">Diesen Code im Menü «Prüfungsplan» von Google Sheets festlegen. Er steht nicht im QR-Code.</span>
+    </label>
+    <button id="submit" type="submit">Prüfung speichern</button>
+    <div id="status" role="status" aria-live="polite"></div>
+  </form>
+  <footer>Privater Prüfungsplan · Google Sheets</footer>
+</main>
+<script>
+(function () {
+  const form=document.getElementById('examForm');
+  const button=document.getElementById('submit');
+  const status=document.getElementById('status');
+  try {
+    document.getElementById('date').min=new Intl.DateTimeFormat('sv-SE',{
+      year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Europe/Zurich'
+    }).format(new Date());
+  } catch (e) { /* Server validates date as well. */ }
+  function message(value,type) {
+    status.textContent=value;status.className=type;status.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+  form.addEventListener('submit',function(event){
+    event.preventDefault();
+    if(!form.reportValidity())return;
+    button.disabled=true;button.textContent='Speichern ...';
+    status.className='';status.textContent='';
+    const data={
+      date:form.date.value,subject:form.subject.value,topic:form.topic.value,
+      note:form.note.value,accessCode:form.accessCode.value
+    };
+    google.script.run
+      .withSuccessHandler(function(res) {
+        button.disabled=false;button.textContent='Prüfung speichern';
+        if(res&&res.saved) {
+          message(res.message,res.synced?'ok':'warning');
+          form.date.value='';form.topic.value='';form.note.value='';
+          form.subject.value='';
+        } else message('Speichern fehlgeschlagen.','error');
+      })
+      .withFailureHandler(function(err) {
+        button.disabled=false;button.textContent='Prüfung speichern';
+        message((err&&err.message)||'Fehler beim Speichern.','error');
+      })
+      .submitExamFromForm(data);
+  });
+})();
+</script>
+</body>
+</html>
