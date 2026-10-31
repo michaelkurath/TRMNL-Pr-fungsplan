@@ -10,11 +10,18 @@ function setup(){
  s.getRange('A1:E1').setBackground('#172d40').setFontColor('#ffffff').setFontWeight('bold');
  s.getRange('E2:E500').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['Offen','Erledigt']).build());
  s.getRange('B2:B500').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(ORDER).setAllowInvalid(true).build());
- const t=ScriptApp.getProjectTriggers().map(x=>x.getHandlerFunction());
- if(!t.includes('syncToTrmnl'))ScriptApp.newTrigger('syncToTrmnl').timeBased().everyHours(6).create();
- if(!t.includes('onSheetEdit'))ScriptApp.newTrigger('onSheetEdit').forSpreadsheet(ss).onEdit().create();
+ // Migrate old six-hour trigger to an every-minute pending-change checker.
+ // The checker does nothing when there is no work, except a periodic safety refresh.
+ const triggers=ScriptApp.getProjectTriggers();
+ triggers.filter(t=>t.getHandlerFunction()==='syncToTrmnl')
+   .forEach(t=>ScriptApp.deleteTrigger(t));
+ if(!triggers.some(t=>t.getHandlerFunction()==='onSheetEdit'))
+   ScriptApp.newTrigger('onSheetEdit').forSpreadsheet(ss).onEdit().create();
+ if(!triggers.some(t=>t.getHandlerFunction()==='syncPendingChanges'))
+   ScriptApp.newTrigger('syncPendingChanges').timeBased().everyMinutes(1).create();
+ PropertiesService.getScriptProperties().setProperty('SYNC_PENDING','1');
 }
-function onOpen(){SpreadsheetApp.getUi().createMenu('Prüfungsplan').addItem('Webhook verbinden','setWebhook').addItem('Jetzt synchronisieren','syncToTrmnl').addItem('Verbindung testen','testConnection').addItem('Druckvorlage aktualisieren','createPrintSheet').addSeparator()
+function onOpen(){SpreadsheetApp.getUi().createMenu('Prüfungsplan').addItem('Webhook verbinden','setWebhook').addItem('Jetzt synchronisieren','syncToTrmnl').addItem('Verbindung testen','testConnection').addItem('Sync-Status anzeigen','showSyncStatus').addItem('Druckvorlage aktualisieren','createPrintSheet').addSeparator()
  .addItem('Google Formular einrichten','setupGoogleForm').addToUi();}
 function setWebhook(){
  const ui=SpreadsheetApp.getUi(),a=ui.prompt('TRMNL Webhook URL','Geheime URL einfügen:',ui.ButtonSet.OK_CANCEL);
@@ -23,13 +30,67 @@ function setWebhook(){
  if(!/^https:\/\/[^/]*trmnl\.com\/api\/custom_plugins\//.test(url))throw Error('Ungültige Webhook URL');
  PropertiesService.getScriptProperties().setProperty('WEBHOOK_URL',url);syncToTrmnl();
 }
+/** A single edit is never discarded just because the previous push was recent. */
 function onSheetEdit(e){
- if(!e||e.range.getSheet().getName()!==TAB||e.range.getRow()<2)return;
- const p=PropertiesService.getScriptProperties();
- if(Date.now()-Number(p.getProperty('LAST_SYNC')||0)<300000)return;
- syncToTrmnl();p.setProperty('LAST_SYNC',String(Date.now()));
+ if(!e||!e.range||e.range.getSheet().getName()!==TAB||e.range.getRow()<2)return;
+ if(e.range.getColumn()>5)return; // Only A:E drive the TRMNL
+ markPendingSync_();
+ // Send immediately if at least a minute passed since the last successful push.
+ // Otherwise the clock trigger will deliver the pending change shortly.
+ syncPendingChanges();
 }
+
+/** Serialize dirty state changes with outgoing pushes to prevent lost edits. */
+function markPendingSync_(){
+ const lock=LockService.getScriptLock();
+ lock.waitLock(30000);
+ try {PropertiesService.getScriptProperties().setProperty('SYNC_PENDING','1');}
+ finally {lock.releaseLock();}
+}
+
+/** Manual "Jetzt synchronisieren": always push immediately, ignoring throttle. */
 function syncToTrmnl(){
+ const lock=LockService.getScriptLock();
+ lock.waitLock(30000);
+ try {
+   sendToTrmnl_();
+   markSyncSuccessful_();
+ } finally {lock.releaseLock();}
+}
+
+/** Runs every minute. Retries failed pushes and catches throttled edits. */
+function syncPendingChanges(){
+ const lock=LockService.getScriptLock();
+ if(!lock.tryLock(1000))return; // Another sync is running; next tick retries.
+ try {
+   const p=PropertiesService.getScriptProperties();
+   if(!p.getProperty('WEBHOOK_URL'))return;
+   const now=Date.now();
+   const previous=Number(p.getProperty('LAST_SUCCESSFUL_PUSH_MS')||'0');
+   const today=Utilities.formatDate(new Date(now),'Europe/Zurich','yyyy-MM-dd');
+   const pending=p.getProperty('SYNC_PENDING')==='1';
+   const dayChanged=p.getProperty('LAST_SUCCESSFUL_PUSH_DATE')!==today;
+   const safetyRefresh=previous===0||now-previous>=6*60*60*1000;
+   if(!pending&&!dayChanged&&!safetyRefresh)return;
+   // A burst of edits results in at most one push per minute.
+   if(pending&&!dayChanged&&!safetyRefresh&&now-previous<60*1000)return;
+   // A failed request leaves SYNC_PENDING set, for retry on next clock tick.
+   sendToTrmnl_();
+   markSyncSuccessful_();
+ } finally {lock.releaseLock();}
+}
+
+function markSyncSuccessful_(){
+ const p=PropertiesService.getScriptProperties();
+ p.setProperties({
+   'SYNC_PENDING':'0',
+   'LAST_SUCCESSFUL_PUSH_MS':String(Date.now()),
+   'LAST_SUCCESSFUL_PUSH_DATE':Utilities.formatDate(new Date(),'Europe/Zurich','yyyy-MM-dd')
+ });
+}
+
+/** Build and send one snapshot. Does not mutate sync flags itself. */
+function sendToTrmnl_(){
  const url=PropertiesService.getScriptProperties().getProperty('WEBHOOK_URL');
  if(!url)throw Error('Webhook zuerst verbinden');
  const s=getPlannerSpreadsheet().getSheetByName(TAB);
@@ -37,18 +98,14 @@ function syncToTrmnl(){
  if(s&&s.getLastRow()>1)s.getRange(2,1,s.getLastRow()-1,5).getValues().forEach((r,i)=>{
   if(!r[0]||!r[1]||!r[2]||String(r[4]).trim().toLowerCase()==='erledigt')return;
   let d=r[0];
-  if(!(d instanceof Date)){const m=String(d).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);d=m?new Date(+m[3],+m[2]-1,+m[1],12):null;}
+  if(!(d instanceof Date)){const m=String(d).match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})$/);d=m?new Date(+m[3],+m[2]-1,+m[1],12):null;}
   if(!d||isNaN(d.getTime()))throw Error('Ungültiges Datum in Zeile '+(i+2));
   const key=Utilities.formatDate(d,tz,'yyyy-MM-dd');if(key<today)return;
   const days=Math.round((Date.parse(key+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000);
   items.push({date:key,date_label:Utilities.formatDate(d,tz,'dd.MM.'),subject:String(r[1]).trim(),topic:String(r[2]).trim().slice(0,90),note:String(r[3]||'').trim().slice(0,75),days,urgent:days<=3});
  });
- items.sort((a,b)=>a.date.localeCompare(b.date));
- // Chronologische Liste, unabhängig vom Fach. Bei gleichem Datum alphabetisch sortieren.
  items.sort((a,b)=>a.date.localeCompare(b.date)||a.subject.localeCompare(b.subject)||a.topic.localeCompare(b.topic));
  const chosen=items.slice(0,30);
- // Always provide a scannable destination. Until Google Forms is configured,
- // the QR leads to the private, access-controlled source sheet instead.
  const formUrl=PropertiesService.getScriptProperties().getProperty('FORM_URL')||'';
  const entryUrl=formUrl||getPlannerSpreadsheet().getUrl();
  const entryMode=formUrl?'form':'sheet';
@@ -56,7 +113,21 @@ function syncToTrmnl(){
  while(JSON.stringify(data).length>1800&&chosen.length>1)chosen.pop();
  if(JSON.stringify(data).length>1800)throw Error('Payload zu gross');
  const response=UrlFetchApp.fetch(url,{method:'post',contentType:'application/json',payload:JSON.stringify(data),muteHttpExceptions:true});
- if(response.getResponseCode()<200||response.getResponseCode()>=300)throw Error('TRMNL HTTP '+response.getResponseCode()+': '+response.getContentText().slice(0,200));
+ if(response.getResponseCode()<200||response.getResponseCode()>=300)
+   throw Error('TRMNL HTTP '+response.getResponseCode()+': '+response.getContentText().slice(0,200));
+}
+
+function showSyncStatus(){
+ const p=PropertiesService.getScriptProperties();
+ const date=Number(p.getProperty('LAST_SUCCESSFUL_PUSH_MS')||0);
+ const clock=ScriptApp.getProjectTriggers().some(t=>t.getHandlerFunction()==='syncPendingChanges');
+ const info=[
+   'Automatischer Minutentrigger: '+(clock?'aktiv':'NICHT eingerichtet – setup() ausführen'),
+   'Ausstehende Änderungen: '+(p.getProperty('SYNC_PENDING')==='1'?'Ja':'Nein'),
+   'Letzte erfolgreiche Übertragung: '+(date?Utilities.formatDate(new Date(date),'Europe/Zurich','dd.MM.yyyy HH:mm:ss'):'Noch keine'),
+   'TRMNL-Webhook: '+(p.getProperty('WEBHOOK_URL')?'verbunden':'nicht verbunden')
+ ].join('\\n');
+ SpreadsheetApp.getUi().alert(info);
 }
 
 /**
@@ -217,10 +288,12 @@ function onExamFormSubmit(event){
    if(!sheet)throw Error('Blatt Pruefungen fehlt.');
    sheet.appendRow([date,subject,topic.slice(0,90),note.slice(0,75),'Offen']);
    SpreadsheetApp.flush();
+   // Mark under the existing script lock, before attempting delivery.
+   props.setProperty('SYNC_PENDING','1');
    if(doneKey)props.setProperty(doneKey,'1');
  } finally {
    lock.releaseLock();
  }
- try {syncToTrmnl();}
- catch(err){console.error('Prüfung gespeichert; TRMNL-Synchronisierung fehlgeschlagen: '+err.message);}
+ try {syncPendingChanges();}
+ catch(err){console.error('Prüfung gespeichert; TRMNL-Synchronisierung wird automatisch wiederholt: '+err.message);}
 }
