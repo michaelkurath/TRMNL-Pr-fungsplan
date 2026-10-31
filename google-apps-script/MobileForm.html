@@ -79,16 +79,21 @@
     button.disabled=true;button.textContent='Speichern ...';
     status.className='';status.textContent='';
     const data={
-      date:form.date.value,subject:form.subject.value,topic:form.topic.value,
-      note:form.note.value,accessCode:form.accessCode.value
+      date:document.getElementById('date').value,
+      subject:document.getElementById('subject').value,
+      topic:document.getElementById('topic').value,
+      note:document.getElementById('note').value,
+      accessCode:document.getElementById('accessCode').value
     };
     google.script.run
       .withSuccessHandler(function(res) {
         button.disabled=false;button.textContent='Prüfung speichern';
         if(res&&res.saved) {
           message(res.message,res.synced?'ok':'warning');
-          form.date.value='';form.topic.value='';form.note.value='';
-          form.subject.value='';
+          document.getElementById('date').value='';
+          document.getElementById('topic').value='';
+          document.getElementById('note').value='';
+          document.getElementById('subject').value='';
         } else message('Speichern fehlgeschlagen.','error');
       })
       .withFailureHandler(function(err) {
